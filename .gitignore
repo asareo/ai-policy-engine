@@ -1,0 +1,11 @@
+# Python internal caches
+__pycache__/
+*.pyc
+
+# Local Virtual environments
+.venv/
+env/
+
+# Local databases and raw data
+database/*.db
+data/
