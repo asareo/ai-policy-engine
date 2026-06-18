@@ -1,0 +1,40 @@
+# AI Policy Compliance & Risk Analytics Engine
+
+A data operations pipeline and interactive analysis dashboard designed to clean, tokenize, audit, and store raw unstructured AI legislation frameworks into a local relational database.
+
+## System Architecture
+
+- **`src/pipeline.py`**: Core backend data engine. Establishes SQLite structures, handles data ingestion, processes raw text into paragraph blocks, and executes word pattern matching to calculate compliance risk flag counts.
+- **`src/dashboard.py`**: Frontend interface built on Streamlit. Connects to the SQLite storage layer via Pandas to display aggregate KPI metrics, data tables, and an interactive policy upload component.
+- **`database/policy_data.db`**: Local SQLite relational database file tracking schemas.
+
+## Database Schema
+
+### Table: `compliance_documents`
+- `doc_id` (INTEGER, PK, Auto-increment)
+- `doc_title` (TEXT, Not Null)
+- `jurisdiction` (TEXT, Not Null)
+- `date_added` (TIMESTAMP, Default Current)
+
+### Table: `document_chunks`
+- `chunk_id` (INTEGER, PK, Auto-increment)
+- `doc_id` (INTEGER, FK -> `compliance_documents.doc_id`)
+- `chunk_index` (INTEGER, Not Null)
+- `raw_text` (TEXT, Not Null)
+- `risk_flag_count` (INTEGER, Default 0)
+
+## Core Functions
+
+### Ingestion Engine (`src/pipeline.py`)
+- `get_db_connection()`: Returns an active connection to `database/policy_data.db` with dictionary-like row factories enabled.
+- `init_database()`: Verifies and runs `CREATE TABLE IF NOT EXISTS` statements for baseline schema setup.
+- `audit_text_for_risks(text)`: Scans strings for core hazard variables (`liability`, `penalty`, `restriction`, `violation`, `non-compliance`, `prohibited`, `fine`) and returns an integer count.
+- `ingest_policy_document(title, jurisdiction, full_text)`: Master transaction block. Writes parent metadata row, loops tokenized chunks, runs the risk auditor per chunk, and executes batch inserts.
+
+### Frontend Dashboard (`src/dashboard.py`)
+- `load_dashboard_data()`: Uses Pandas `read_sql_query` to run analytical joins across both relational tables.
+- `st.sidebar`: Hosts a transactional wrapper form using `st.form(key="ingestion_form")` to take runtime data inputs and call the backend injection engine without triggering broken UI re-render loops.
+
+### Policy Diffusion Tracker (`src/tracker.py`)
+- `load_regulatory_dataset()`: Initializes the policy indicators dataframe tracking sovereign variables (`Restriction_Score`, `Enforcement_Level`, `Enactment_Year`, `Oversight_Count`).
+- Uses `st.multiselect` to apply vector column filtration across enforcement parameters and hot-reloads cross-sectional bar charts and legislative distribution grids on the main canvas.
