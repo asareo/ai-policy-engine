@@ -1,11 +1,12 @@
 # AI Policy Compliance & Risk Analytics Engine
 
-A data operations pipeline and interactive analysis dashboard designed to clean, tokenize, audit, and store raw unstructured AI legislation frameworks into a local relational database.
+A data operations pipeline and interactive analysis dashboard designed to clean, tokenize, audit, and store raw unstructured AI legislation frameworks into a local relational database. The system now includes enhanced risk scoring, automated reporting, interactive text search, and statistical policy divergence analysis.
 
 ## System Architecture
 
-- **`src/pipeline.py`**: Core backend data engine. Establishes SQLite structures, handles data ingestion, processes raw text into paragraph blocks, and executes word pattern matching to calculate compliance risk flag counts.
-- **`src/dashboard.py`**: Frontend interface built on Streamlit. Connects to the SQLite storage layer via Pandas to display aggregate KPI metrics, data tables, and an interactive policy upload component.
+- **`src/pipeline.py`**: Core backend data engine. Establishes SQLite structures, handles data ingestion, processes raw text into paragraph blocks, and executes a weighted risk score algorithm to calculate compliance risk. Now includes an automated reporting script for generating compliance summaries.
+- **`src/dashboard.py`**: Frontend interface built on Streamlit. Connects to the SQLite storage layer via Pandas to display aggregate KPI metrics, data tables, and an interactive policy upload component. Features a new interactive text search module for filtering and analyzing document chunks.
+- **`src/tracker.py`**: Policy diffusion tracker that calculates standard statistical strictness Z-scores for international policy divergence analysis, enabling comparative regulatory assessments.
 - **`database/policy_data.db`**: Local SQLite relational database file tracking schemas.
 
 ## Database Schema
@@ -22,19 +23,25 @@ A data operations pipeline and interactive analysis dashboard designed to clean,
 - `chunk_index` (INTEGER, Not Null)
 - `raw_text` (TEXT, Not Null)
 - `risk_flag_count` (INTEGER, Default 0)
+- `weighted_risk_score` (REAL, Default 0.0)  # New field for weighted risk scoring
 
 ## Core Functions
 
 ### Ingestion Engine (`src/pipeline.py`)
 - `get_db_connection()`: Connects to SQLite layout.
-- `init_database()`: Enforces database table initialization structures.
-- `evaluate_safety_tier(risk_count)`: Evaluates chunk density and matches validation labels ('PASS', 'NEEDS_REVIEW', 'FAIL').
-- `ingest_policy_document(title, jurisdiction, full_text)`: Handles file array streams, strips white noise, evaluates chunks, and runs automatic transaction rollbacks on error states.
+- `init_database()`: Enforces database table initialization structures, now including the `weighted_risk_score` field.
+- `evaluate_safety_tier(risk_count)`: Evaluates chunk density and matches validation labels ('PASS', 'NEEDS_REVIEW', 'FAIL') based on weighted risk scores.
+- `calculate_weighted_risk_score(chunk_text)`: Implements a weighted risk scoring algorithm that assigns different weights to various compliance risk patterns.
+- `ingest_policy_document(title, jurisdiction, full_text)`: Handles file array streams, strips white noise, evaluates chunks using weighted risk scoring, and runs automatic transaction rollbacks on error states.
+- `generate_compliance_report(doc_id)`: New function that generates an automated compliance report summarizing risk findings for a given document.
 
 ### Frontend Dashboard (`src/dashboard.py`)
-- `load_dashboard_data()`: Uses Pandas `read_sql_query` to run analytical joins across both relational tables.
+- `load_dashboard_data()`: Uses Pandas `read_sql_query` to run analytical joins across both relational tables, now including weighted risk score metrics.
 - `st.sidebar`: Hosts a transactional wrapper form using `st.form(key="ingestion_form")` to take runtime data inputs and call the backend injection engine without triggering broken UI re-render loops.
+- `interactive_text_search()`: New module that enables users to search and filter document chunks by keywords, risk levels, or weighted risk scores, with results displayed in an interactive table.
 
 ### Policy Diffusion Tracker (`src/tracker.py`)
-- `load_regulatory_dataset()`: Initializes the policy indicators dataframe tracking sovereign variables.
+- `load_regulatory_dataset()`: Initializes the policy indicators dataframe tracking sovereign variables, now including statistical strictness metrics.
+- `calculate_z_scores()`: New function that computes standard statistical Z-scores to measure policy strictness divergence across jurisdictions.
+- `analyze_policy_divergence()`: New function that performs comparative analysis of regulatory frameworks using Z-scores and other statistical measures.
 - Utilizes `st.sidebar.slider` to execute scalar data projections (`Projected_Restriction_Score`) across row matrices using pandas arithmetic methods, mapping dynamic multi-bar trends and calculated regulatory velocity index streams.

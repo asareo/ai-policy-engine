@@ -9,3 +9,9 @@ env/
 # Local databases and raw data
 database/*.db
 data/
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore generated data reports
+database/*.txt

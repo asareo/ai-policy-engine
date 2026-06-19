@@ -45,6 +45,23 @@ df_policy["Projected_Restriction_Score"] = (df_policy["Restriction_Score"] * str
 # Formula: Oversight boards established per year elapsed since a baseline anchor year (2022)
 df_policy["Regulatory_Velocity"] = df_policy["Oversight_Count"] / (df_policy["Enactment_Year"] - 2022 + 1)
 
+# Calculate Strictness Z-Score
+mean_restriction = df_policy["Restriction_Score"].mean()
+std_restriction = df_policy["Restriction_Score"].std()
+df_policy["Strictness_Z_Score"] = (df_policy["Restriction_Score"] - mean_restriction) / std_restriction
+
+# Display the updated dataframe with statistical columns
+st.subheader("Regulatory Data with Statistical Metrics")
+st.dataframe(
+    df_policy.style.format({
+        "Restriction_Score": "{:.1f}",
+        "Projected_Restriction_Score": "{:.1f}",
+        "Regulatory_Velocity": "{:.2f}",
+        "Strictness_Z_Score": "{:.2f}"
+    }),
+    use_container_width=True
+)
+
 # --- ANALYTICS DISPLAY INTERFACE ---
 total_jurisdictions = len(df_policy)
 average_strictness = df_policy["Projected_Restriction_Score"].mean()
@@ -71,9 +88,25 @@ with left_chart_col:
 with right_table_col:
     st.subheader("Calculated Regulatory Velocity Index")
     # Isolate our engineered acceleration tracking variables
-    velocity_grid = df_policy[["Region", "Enactment_Year", "Regulatory_Velocity"]].sort_values(by="Regulatory_Velocity", ascending=False)
-    st.dataframe(velocity_grid, use_container_width=True, hide_index=True)
+    velocity_grid = df_policy[["Region", "Enactment_Year", "Regulatory_Velocity", "Strictness_Z_Score"]].sort_values(by="Regulatory_Velocity", ascending=False)
+    st.dataframe(
+        velocity_grid.style.format({
+            "Regulatory_Velocity": "{:.2f}",
+            "Strictness_Z_Score": "{:.2f}"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
 
 st.divider()
 st.subheader("Master Policy Tracking Log (With Simulated Vectors)")
-st.dataframe(df_policy, use_container_width=True, hide_index=True)
+st.dataframe(
+    df_policy.style.format({
+        "Restriction_Score": "{:.1f}",
+        "Projected_Restriction_Score": "{:.1f}",
+        "Regulatory_Velocity": "{:.2f}",
+        "Strictness_Z_Score": "{:.2f}"
+    }),
+    use_container_width=True,
+    hide_index=True
+)

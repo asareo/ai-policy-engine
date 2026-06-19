@@ -1,7 +1,9 @@
 import sqlite3
 import os
 
+# Define universal project path routing
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'policy_data.db')
+REPORT_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'compliance_report.txt')
 
 def get_db_connection():
     """Establishes a connection to the SQLite database file."""
@@ -53,13 +55,21 @@ def evaluate_safety_tier(risk_count):
         return "FAIL"
 
 def audit_text_for_risks(text):
-    """Audits text strings for critical regulatory risk keywords."""
-    risk_keywords = ["liability", "penalty", "restriction", "violation", "non-compliance", "prohibited", "fine"]
-    count = 0
+    """Audits text strings for critical regulatory risk keywords with weighted scoring."""
+    risk_keywords = {
+        "prohibited": 3,
+        "violation": 3,
+        "penalty": 3,
+        "liability": 1,
+        "restriction": 1,
+        "non-compliance": 1,
+        "fine": 1
+    }
+    total_score = 0
     lower_text = text.lower()
-    for word in risk_keywords:
-        count += lower_text.count(word)
-    return count
+    for word, weight in risk_keywords.items():
+        total_score += lower_text.count(word) * weight
+    return total_score
 
 def ingest_policy_document(title, jurisdiction, full_text):
     """
@@ -111,6 +121,54 @@ def ingest_policy_document(title, jurisdiction, full_text):
     finally:
         conn.close()
 
+def export_compliance_report():
+    """
+    Generates a compliance report by querying all document chunks,
+    grouping them by evaluation status, and writing a summary to a text file.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Query all chunks grouped by evaluation status
+        cursor.execute('''
+            SELECT evaluation_status, COUNT(*) as count
+            FROM document_chunks
+            GROUP BY evaluation_status
+        ''')
+
+        status_counts = cursor.fetchall()
+
+        # Create report directory if it doesn't exist
+        os.makedirs(os.path.dirname(REPORT_PATH), exist_ok=True)
+
+        # Write the report to file
+        with open(REPORT_PATH, 'w') as report_file:
+            report_file.write("COMPLIANCE EVALUATION REPORT\n")
+            report_file.write("============================\n\n")
+            report_file.write("Summary of Document Chunk Evaluations:\n\n")
+
+            total_chunks = 0
+            for row in status_counts:
+                status = row['evaluation_status']
+                count = row['count']
+                total_chunks += count
+                report_file.write(f"{status}: {count} chunks\n")
+
+            report_file.write("\n")
+            report_file.write(f"Total chunks evaluated: {total_chunks}\n")
+            report_file.write(f"Report generated on: {sqlite3.datetime.datetime.now()}\n")
+
+        print(f"Compliance report generated successfully at {REPORT_PATH}")
+
+    except Exception as e:
+        print(f"Error generating compliance report: {e}")
+        raise e
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
     init_database()
     print("Database system structures verified.")
+    # Execute the automated compilation report
+    export_compliance_report()
