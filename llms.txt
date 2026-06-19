@@ -26,10 +26,10 @@ A data operations pipeline and interactive analysis dashboard designed to clean,
 ## Core Functions
 
 ### Ingestion Engine (`src/pipeline.py`)
-- `get_db_connection()`: Returns an active connection to `database/policy_data.db` with dictionary-like row factories enabled.
-- `init_database()`: Verifies and runs `CREATE TABLE IF NOT EXISTS` statements for baseline schema setup.
-- `audit_text_for_risks(text)`: Scans strings for core hazard variables (`liability`, `penalty`, `restriction`, `violation`, `non-compliance`, `prohibited`, `fine`) and returns an integer count.
-- `ingest_policy_document(title, jurisdiction, full_text)`: Master transaction block. Writes parent metadata row, loops tokenized chunks, runs the risk auditor per chunk, and executes batch inserts.
+- `get_db_connection()`: Connects to SQLite layout.
+- `init_database()`: Enforces database table initialization structures.
+- `evaluate_safety_tier(risk_count)`: Evaluates chunk density and matches validation labels ('PASS', 'NEEDS_REVIEW', 'FAIL').
+- `ingest_policy_document(title, jurisdiction, full_text)`: Handles file array streams, strips white noise, evaluates chunks, and runs automatic transaction rollbacks on error states.
 
 ### Frontend Dashboard (`src/dashboard.py`)
 - `load_dashboard_data()`: Uses Pandas `read_sql_query` to run analytical joins across both relational tables.

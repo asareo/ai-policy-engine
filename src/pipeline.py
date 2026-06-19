@@ -1,32 +1,30 @@
 import sqlite3
 import os
 
-# Define the absolute path to where our database file will live
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'policy_data.db')
 
 def get_db_connection():
-    """Establishes and returns a direct connection to our SQLite database file."""
+    """Establishes a connection to the SQLite database file."""
     conn = sqlite3.connect(DB_PATH)
-    # This configuration line allows us to interact with rows like dictionaries (by column name)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_database():
-    """Creates the structural policy tables inside the database if they don't exist yet."""
+    """Initializes schema tables with model evaluation columns."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Create Table 1: Stores the baseline metadata of parsed AI regulatory policy files
+    # Master Table: Tracks legislative frameworks/model evaluation suites
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS compliance_documents (
             doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            doc_title TEXT NOT NULL,
+            doc_title TEXT NOT NULL UNIQUE,
             jurisdiction TEXT NOT NULL,
             date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Create Table 2: Stores individual data segments (chunks) mapped back to the parent document
+    # Segment Table: Stores chunks along with automated evaluation tags
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS document_chunks (
             chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,92 +32,85 @@ def init_database():
             chunk_index INTEGER NOT NULL,
             raw_text TEXT NOT NULL,
             risk_flag_count INTEGER DEFAULT 0,
+            evaluation_status TEXT DEFAULT 'PASS',
             FOREIGN KEY (doc_id) REFERENCES compliance_documents (doc_id)
         )
     ''')
     
     conn.commit()
     conn.close()
-    print("Database structures successfully verified/initialized.")
+
+def evaluate_safety_tier(risk_count):
+    """
+    Model Evaluation Matrix (DeepMind Focus): Categorizes data segments
+    based on internal risk density thresholds.
+    """
+    if risk_count == 0:
+        return "PASS"
+    elif 1 <= risk_count <= 2:
+        return "NEEDS_REVIEW"
+    else:
+        return "FAIL"
 
 def audit_text_for_risks(text):
-    """
-    Scans a string of text for specific policy risk keywords.
-    Returns the total count of risk terms found.
-    """
-    # A list of regulatory keywords an AI compliance officer would track
+    """Audits text strings for critical regulatory risk keywords."""
     risk_keywords = ["liability", "penalty", "restriction", "violation", "non-compliance", "prohibited", "fine"]
-    
     count = 0
-    # Clean up the text to lowercase so we don't miss words capitalized at the start of sentences
     lower_text = text.lower()
-    
     for word in risk_keywords:
-        # Count how many times each word appears in this specific chunk
         count += lower_text.count(word)
-        
     return count
 
 def ingest_policy_document(title, jurisdiction, full_text):
     """
-    Takes a raw policy text document, breaks it down into structured paragraphs (chunks),
-    audits each chunk for safety risks, and saves everything to the SQLite database.
+    Robust Ingestion Engine: Slices text files, parses strings, executes
+    evaluations, and enforces database transactional rollbacks if faults occur.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Insert the parent document metadata into our compliance_documents table
-    cursor.execute('''
-        INSERT INTO compliance_documents (doc_title, jurisdiction)
-        VALUES (?, ?)
-    ''', (title, jurisdiction))
-    
-    # Grab the automatically generated doc_id assigned to this new file row
-    doc_id = cursor.lastrowid
-    
-    # 2. Split the text into logical chunks (we will split on double-newlines to isolate paragraphs)
-    paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
-    
-    print(f"\n--- Processing Document: '{title}' ({len(paragraphs)} paragraphs detected) ---")
-    
-    # 3. Loop through every paragraph, audit it, and insert it as a distinct segment
-    for index, paragraph in enumerate(paragraphs):
-        # Run our auditing scanner to count risk flags
-        risk_flags = audit_text_for_risks(paragraph)
+    try:
+        # Enforce transaction boundary isolation
+        cursor.execute("BEGIN TRANSACTION")
         
-        # Insert into our document_chunks table, linking it to the parent doc via foreign key
+        # Insert parent file metadata
         cursor.execute('''
-            INSERT INTO document_chunks (doc_id, chunk_index, raw_text, risk_flag_count)
-            VALUES (?, ?, ?, ?)
-        ''', (doc_id, index, paragraph, risk_flags))
+            INSERT INTO compliance_documents (doc_title, jurisdiction)
+            VALUES (?, ?)
+        ''', (title, jurisdiction))
         
-        print(f" -> Chunk {index} processed. Risk flags found: {risk_flags}")
+        doc_id = cursor.lastrowid
         
-    # Save the database transactions and close our connection securely
-    conn.commit()
-    conn.close()
-    print(f"Successfully committed document transaction to policy_data.db.\n")
+        # Advanced Slicing: Split on newlines, clean whitespace, and filter out blank spacing lines
+        paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
+        
+        for index, paragraph in enumerate(paragraphs):
+            risk_flags = audit_text_for_risks(paragraph)
+            
+            # Run model evaluation classification rule
+            eval_status = evaluate_safety_tier(risk_flags)
+            
+            # Write structured chunk row linked to foreign key parent
+            cursor.execute('''
+                INSERT INTO document_chunks (doc_id, chunk_index, raw_text, risk_flag_count, evaluation_status)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (doc_id, index, paragraph, risk_flags, eval_status))
+            
+        # If all steps complete successfully, commit changes to disk
+        conn.commit()
+        print(f"Transaction Success: Ingested '{title}' successfully.")
+        
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        print(f"Transaction Aborted: Duplicate framework conflict detected for '{title}'.")
+        raise Exception("Database conflict: Framework title already exists.")
+    except Exception as e:
+        conn.rollback()
+        print(f"System Rollback Executed due to internal pipeline exception: {e}")
+        raise e
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
-    # Ensure our structural tables are created first
     init_database()
-    
-    # This mock string simulates a messy, multi-paragraph AI policy brief
-    mock_policy_document = (
-        "The Frontier Artificial Intelligence Safety Framework establishes basic operational rules. "
-        "Companies building foundation systems must maintain absolute data integrity records.\n\n"
-        
-        "Any strict restriction placed on data mining protocols will trigger an internal review. "
-        "Failure to register high-risk models constitutes a severe compliance violation, "
-        "potentially resulting in a significant financial penalty or a massive fine for the organization.\n\n"
-        
-        "Operational parameters require cross-functional stakeholder transparency. "
-        "If non-compliance occurs, external legal liability clauses will take structural effect."
-    )
-    
-    # Run our ingestion pipeline using the mock policy text
-    ingest_policy_document(
-        title="US Executive Order on Frontier AI Development",
-        jurisdiction="United States",
-        full_text=mock_policy_document
-    )
+    print("Database system structures verified.")
