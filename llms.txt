@@ -36,5 +36,5 @@ A data operations pipeline and interactive analysis dashboard designed to clean,
 - `st.sidebar`: Hosts a transactional wrapper form using `st.form(key="ingestion_form")` to take runtime data inputs and call the backend injection engine without triggering broken UI re-render loops.
 
 ### Policy Diffusion Tracker (`src/tracker.py`)
-- `load_regulatory_dataset()`: Initializes the policy indicators dataframe tracking sovereign variables (`Restriction_Score`, `Enforcement_Level`, `Enactment_Year`, `Oversight_Count`).
-- Uses `st.multiselect` to apply vector column filtration across enforcement parameters and hot-reloads cross-sectional bar charts and legislative distribution grids on the main canvas.
+- `load_regulatory_dataset()`: Initializes the policy indicators dataframe tracking sovereign variables.
+- Utilizes `st.sidebar.slider` to execute scalar data projections (`Projected_Restriction_Score`) across row matrices using pandas arithmetic methods, mapping dynamic multi-bar trends and calculated regulatory velocity index streams.

@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
-import datetime
 
 def load_regulatory_dataset():
     """
-    Constructs a baseline statistical matrix mapping global AI policy indices,
-    tracking variables like regional restriction scores and enforcement timelines.
+    Constructs an expanded tracking matrix mapping global AI policy indicators,
+    capturing regulatory strictness caps and sovereign enactment timelines.
     """
-    # Create structured historical data observations from 2024 to 2026
     policy_data = {
         "Region": ["United States", "European Union", "United Kingdom", "China", "Canada", "Singapore", "Ghana"],
         "Framework_Name": ["Executive Order 14110", "EU AI Act", "Pro-Innovation Approach", "Generative AI Measures", "Artificial Intelligence & Data Act", "Model Governance Framework", "Digital Economy Policy"],
@@ -18,67 +16,64 @@ def load_regulatory_dataset():
     }
     return pd.DataFrame(policy_data)
 
-# --- STREAMLIT ANALYTICS LAYOUT ---
 st.set_page_config(page_title="Global AI Regulatory Diffusion Tracker", layout="wide")
 
 st.title("Global AI Regulatory Diffusion Tracker")
-st.markdown("This analytical interface maps international regulatory convergence, drift patterns, and compliance strictness distributions across global jurisdictions.")
+st.markdown("This analytical interface maps international regulatory convergence, drift patterns, and calculated strictness velocity metrics across global jurisdictions.")
 
 st.divider()
 
-# Load the target dataset
 df_policy = load_regulatory_dataset()
 
-# 1. Macro Summary Metric Calculations
-total_jurisdictions = len(df_policy)
-average_strictness = df_policy["Restriction_Score"].mean()
-highest_restriction = df_policy.loc[df_policy["Restriction_Score"].idxmax()]["Region"]
+# --- PHASE 3: COMPUTATIONAL COMPLEXITY LAYER ---
+st.sidebar.header("Simulation Control Panel")
+st.sidebar.markdown("Adjust macro variables to project global compliance drift behavior thresholds.")
 
-# Display statistical KPI indicators side-by-side
+# 1. Slider: Simulates a global regulatory tightening event (e.g., sudden international treaty enforcement)
+strictness_multiplier = st.sidebar.slider(
+    "Global Strictness Acceleration Multiplier",
+    min_value=1.0,
+    max_value=2.0,
+    value=1.0,
+    step=0.1
+)
+
+# Apply the simulated multiplier variable dynamically across dataframe columns
+df_policy["Projected_Restriction_Score"] = (df_policy["Restriction_Score"] * strictness_multiplier).clip(upper=10.0)
+
+# 2. Algorithmic Velocity Calculation: Measures regulatory acceleration rate
+# Formula: Oversight boards established per year elapsed since a baseline anchor year (2022)
+df_policy["Regulatory_Velocity"] = df_policy["Oversight_Count"] / (df_policy["Enactment_Year"] - 2022 + 1)
+
+# --- ANALYTICS DISPLAY INTERFACE ---
+total_jurisdictions = len(df_policy)
+average_strictness = df_policy["Projected_Restriction_Score"].mean()
+highest_restriction = df_policy.loc[df_policy["Projected_Restriction_Score"].idxmax()]["Region"]
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(label="Monitored Sovereign Jurisdictions", value=total_jurisdictions)
 with col2:
-    st.metric(label="Global Strictness Index Average", value=f"{average_strictness:.2f} / 10.0")
+    st.metric(label="Simulated Strictness Index Average", value=f"{average_strictness:.2f} / 10.0")
 with col3:
     st.metric(label="Maximum Compliance Ceiling", value=highest_restriction)
 
 st.divider()
 
-# 2. Dynamic Filtration Control
-st.subheader("Interactive Cohort Filtering")
-selected_enforcement = st.multiselect(
-    "Filter Analysis Matrix by Enforcement Strictness Tier",
-    options=df_policy["Enforcement_Level"].unique(),
-    default=df_policy["Enforcement_Level"].unique()
-)
-
-# Apply runtime filtration to our memory vectors
-df_filtered = df_policy[df_policy["Enforcement_Level"].isin(selected_enforcement)]
-
-# 3. Structural Data Layout Splits
 left_chart_col, right_table_col = st.columns([3, 2])
 
 with left_chart_col:
-    st.subheader("Regional Restriction Score Matrix")
-    if not df_filtered.empty:
-        # Create a clean cross-sectional bar chart mapping regulatory weight
-        chart_matrix = df_filtered.set_index("Region")["Restriction_Score"]
-        st.bar_chart(chart_matrix)
-    else:
-        st.info("No records match the current enforcement level configuration.")
+    st.subheader("Dynamic Cross-Border Restriction Projections")
+    # Plot the simulated projected column against baseline values to show delta trends
+    chart_df = df_policy.set_index("Region")[["Restriction_Score", "Projected_Restriction_Score"]]
+    st.bar_chart(chart_df)
 
 with right_table_col:
-    st.subheader("Legislative Timeline Metrics")
-    if not df_filtered.empty:
-        # Render a focused grid isolating timelines and tracking variables
-        timeline_grid = df_filtered[["Region", "Enactment_Year", "Oversight_Count"]].sort_values(by="Enactment_Year")
-        st.dataframe(timeline_grid, use_container_width=True, hide_index=True)
-    else:
-        st.info("No timeline matrix profiles available.")
+    st.subheader("Calculated Regulatory Velocity Index")
+    # Isolate our engineered acceleration tracking variables
+    velocity_grid = df_policy[["Region", "Enactment_Year", "Regulatory_Velocity"]].sort_values(by="Regulatory_Velocity", ascending=False)
+    st.dataframe(velocity_grid, use_container_width=True, hide_index=True)
 
 st.divider()
-
-# 4. Master Analytics Grid Log
-st.subheader("Master Policy Tracking Log")
-st.dataframe(df_filtered, use_container_width=True, hide_index=True)
+st.subheader("Master Policy Tracking Log (With Simulated Vectors)")
+st.dataframe(df_policy, use_container_width=True, hide_index=True)
